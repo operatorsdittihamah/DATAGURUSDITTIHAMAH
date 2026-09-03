@@ -116,9 +116,28 @@
         }
         .filter-box select:focus { border-color: #0d5c3a; }
 
-        .table-wrapper { overflow-x: auto; width: 100%; border-radius: 8px; border: 1px solid #e9ecef; }
+        /* Perbaikan CSS: Fitur geser horizontal & vertikal */
+        .table-wrapper { 
+            overflow-x: auto; 
+            overflow-y: auto; 
+            max-height: 600px; 
+            width: 100%; 
+            border-radius: 8px; 
+            border: 1px solid #e9ecef; 
+        }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px; white-space: nowrap; }
-        th { background-color: #f8f9fa; color: #495057; font-weight: 600; padding: 14px; border-bottom: 2px solid #dee2e6; }
+        
+        /* Sticky header saat di-scroll ke bawah */
+        th { 
+            position: sticky; 
+            top: 0; 
+            background-color: #f8f9fa; 
+            color: #495057; 
+            font-weight: 600; 
+            padding: 14px; 
+            border-bottom: 2px solid #dee2e6; 
+            z-index: 5; 
+        }
         td { padding: 12px 14px; border-bottom: 1px solid #e9ecef; color: #333; }
         tr:hover { background-color: #f4fbf7; }
         
@@ -230,7 +249,6 @@
         </div>
     </div>
 
-    <!-- Modal Form Tambah & Edit Data -->
     <div class="modal" id="guruModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -238,8 +256,8 @@
                 <i class="fa-solid fa-xmark" onclick="closeModal()" style="cursor: pointer; font-size: 18px; color: #6c757d;"></i>
             </div>
             <form id="formGuru" onsubmit="simpanDataGuru(event)">
-                <!-- Input tersembunyi penanda mode edit (-1 = Tambah Baru, >=0 = Edit Baris) -->
                 <input type="hidden" id="editIndex" value="-1">
+                <input type="hidden" id="rowIndex" value="">
                 
                 <div class="form-grid">
                     <div class="form-group">
@@ -337,12 +355,33 @@
     </div>
 
     <script>
-    // MASUKKAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA DI SINI
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyClYwwbbAmTAy6AJ7iOzGrRG6PjaZXYTCLdr5_tKuTSatu4Q4uFXIKPoca4oA1X4ug3w/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw3j1MdL3QKYZ6GqkldE__R4xkJMGcHJX52eaV4dbDmjKQ_peKvv74zLrVPE97YEGkJcQ/exec";
     
     let globalPegawaiData = [];
 
     document.addEventListener("DOMContentLoaded", muatDataGuru);
+
+    // Fungsi parsing tanggal dari Google Sheet agar format input date HTML dapat membaca dengan tepat
+    function formatTanggalInput(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function formatTanggalTampil(dateStr, formatType = 'long') {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        if (formatType === 'long') {
+            return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        } else {
+            return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+    }
 
     function hitungMasaKerja(tmtString) {
         if (!tmtString) return "-";
@@ -362,6 +401,7 @@
     function openModalTambah() {
         document.getElementById('formGuru').reset();
         document.getElementById('editIndex').value = "-1";
+        document.getElementById('rowIndex').value = "";
         document.getElementById('modalTitle').innerText = "Tambah Data Pegawai";
         document.getElementById('guruModal').style.display = 'flex';
     }
@@ -370,6 +410,7 @@
         document.getElementById('guruModal').style.display = 'none';
         document.getElementById('formGuru').reset();
         document.getElementById('editIndex').value = "-1";
+        document.getElementById('rowIndex').value = "";
     }
 
     async function muatDataGuru() {
@@ -399,14 +440,13 @@
     }
 
     function renderRow(payload, index) {
-        const tglLahirFormatted = payload.tglLahir ? new Date(payload.tglLahir).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
-        const tmtFormatted = payload.tmt ? new Date(payload.tmt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+        const tglLahirFormatted = formatTanggalTampil(payload.tglLahir, 'long');
+        const tmtFormatted = formatTanggalTampil(payload.tmt, 'short');
         const masaKerja = payload.tmt ? hitungMasaKerja(payload.tmt) : (payload.masaKerja || '-');
         
         const badgeDapodikClass = (payload.statusDapodik || '').includes('Sudah') ? 'badge-success' : 'badge-danger';
         const badgeSertifikasiClass = (payload.statusSertifikasi || '').includes('Sudah') ? 'badge-success' : 'badge-danger';
         
-        // Membaca peran dari data JSON server
         const peran = payload.peranPegawai || 'Guru';
         const badgePeranClass = peran === 'Tendik' ? 'badge-peran-tendik' : 'badge-peran-guru';
 
@@ -418,7 +458,7 @@
                 <td><strong>${payload.nama || ''}</strong></td>
                 <td>${payload.tempatLahir || ''}</td>
                 <td>${tglLahirFormatted}</td>
-                <td>${payload.nik || ''}</td>
+                <td>'${payload.nik || ''}</td>
                 <td>${payload.noHp || ''}</td>
                 <td>${payload.pendidikan || ''}</td>
                 <td>${payload.jurusan || ''}</td>
@@ -441,22 +481,22 @@
         const item = globalPegawaiData[index];
         if (!item) return;
 
-        // Tandai baris index yang akan di-update
         document.getElementById('editIndex').value = index;
+        // Asumsi header spreadsheet pada baris 1, data dimulai dari baris 2
+        document.getElementById('rowIndex').value = item.rowIndex || (index + 2); 
         document.getElementById('modalTitle').innerText = "Edit Data Pegawai";
         
-        // Isi form dengan data yang sudah ada
         document.getElementById('peranPegawai').value = item.peranPegawai || 'Guru';
         document.getElementById('nama').value = item.nama || '';
         document.getElementById('tempatLahir').value = item.tempatLahir || '';
-        document.getElementById('tglLahir').value = item.tglLahir ? new Date(item.tglLahir).toISOString().split('T')[0] : '';
+        document.getElementById('tglLahir').value = formatTanggalInput(item.tglLahir);
         document.getElementById('nik').value = item.nik || '';
         document.getElementById('noHp').value = item.noHp || '';
         document.getElementById('pendidikan').value = item.pendidikan || 'S1';
         document.getElementById('jurusan').value = item.jurusan || '';
         document.getElementById('tahunIjazah').value = item.tahunIjazah || '';
         document.getElementById('jabatan').value = item.jabatan || '';
-        document.getElementById('tmt').value = item.tmt ? new Date(item.tmt).toISOString().split('T')[0] : '';
+        document.getElementById('tmt').value = formatTanggalInput(item.tmt);
         document.getElementById('statusKepegawaian').value = item.statusKepegawaian || 'GTY (Guru Tetap Yayasan)';
         document.getElementById('mapel').value = item.mapel || '';
         document.getElementById('statusDapodik').value = item.statusDapodik || 'Sudah Masuk Dapodik';
@@ -474,13 +514,14 @@
         btnSubmit.disabled = true;
 
         const editIndex = parseInt(document.getElementById('editIndex').value);
+        const rowIndex = document.getElementById('rowIndex').value;
         const isEditMode = editIndex >= 0;
         const tmtVal = document.getElementById('tmt').value;
         const masaKerja = hitungMasaKerja(tmtVal);
 
         const payload = {
-            isEdit: isEditMode,
-            rowId: isEditMode ? editIndex : null,
+            action: isEditMode ? 'update' : 'create',
+            rowIndex: isEditMode ? rowIndex : null,
             peranPegawai: document.getElementById('peranPegawai').value,
             nama: document.getElementById('nama').value,
             tempatLahir: document.getElementById('tempatLahir').value,
@@ -492,12 +533,12 @@
             tahunIjazah: document.getElementById('tahunIjazah').value,
             jabatan: document.getElementById('jabatan').value,
             tmt: tmtVal,
+            masaKerja: masaKerja,
             statusKepegawaian: document.getElementById('statusKepegawaian').value,
             mapel: document.getElementById('mapel').value,
             statusDapodik: document.getElementById('statusDapodik').value,
             statusSertifikasi: document.getElementById('statusSertifikasi').value,
-            alamat: document.getElementById('alamat').value,
-            masaKerja: masaKerja
+            alamat: document.getElementById('alamat').value
         };
 
         try {
