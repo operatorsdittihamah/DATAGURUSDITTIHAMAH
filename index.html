@@ -116,15 +116,52 @@
         }
         .filter-box select:focus { border-color: #0d5c3a; }
 
+        /* Container pembungkus tabel & resizer */
+        .resizable-container {
+            position: relative;
+            width: 100%;
+        }
+
         /* Perbaikan CSS: Fitur geser horizontal & vertikal */
         .table-wrapper { 
             overflow-x: auto; 
             overflow-y: auto; 
-            max-height: 600px; 
+            height: 450px; /* Nilai awal tinggi tabel */
+            min-height: 200px;
+            max-height: 800px;
             width: 100%; 
-            border-radius: 8px; 
+            border-radius: 8px 8px 0 0; 
             border: 1px solid #e9ecef; 
         }
+
+        /* Batang penarik (Resizer Handle) seperti Dapodik/Excel */
+        .table-resizer {
+            height: 12px;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            cursor: ns-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .table-resizer:hover, .table-resizer.resizing {
+            background-color: #0d5c3a;
+        }
+        .table-resizer::after {
+            content: '';
+            width: 35px;
+            height: 4px;
+            border-top: 2px solid #adb5bd;
+            border-bottom: 2px solid #adb5bd;
+        }
+        .table-resizer:hover::after, .table-resizer.resizing::after {
+            border-color: #ffffff;
+        }
+
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px; white-space: nowrap; }
         
         /* Sticky header saat di-scroll ke bawah */
@@ -217,34 +254,38 @@
                 </div>
             </div>
 
-            <div class="table-wrapper">
-                <table id="guruTable">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Aksi</th>
-                            <th>Peran</th>
-                            <th>Nama Pegawai</th>
-                            <th>Tempat Lahir</th>
-                            <th>Tanggal Lahir</th>
-                            <th>NIK</th>
-                            <th>No. HP/WA</th>
-                            <th>Pendidikan</th>
-                            <th>Jurusan</th>
-                            <th>Tahun Ijazah</th>
-                            <th>Jabatan</th>
-                            <th>TMT</th>
-                            <th>Masa Kerja</th>
-                            <th>Status Kepegawaian</th>
-                            <th>Mata Pelajaran</th>
-                            <th>Status Dapodik</th>
-                            <th>Status Sertifikasi</th>
-                            <th>Alamat</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                    </tbody>
-                </table>
+            <div class="resizable-container">
+                <div class="table-wrapper" id="tableWrapper">
+                    <table id="guruTable">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Aksi</th>
+                                <th>Peran</th>
+                                <th>Nama Pegawai</th>
+                                <th>Tempat Lahir</th>
+                                <th>Tanggal Lahir</th>
+                                <th>NIK</th>
+                                <th>No. HP/WA</th>
+                                <th>Pendidikan</th>
+                                <th>Jurusan</th>
+                                <th>Tahun Ijazah</th>
+                                <th>Jabatan</th>
+                                <th>TMT</th>
+                                <th>Masa Kerja</th>
+                                <th>Status Kepegawaian</th>
+                                <th>Mata Pelajaran</th>
+                                <th>Status Dapodik</th>
+                                <th>Status Sertifikasi</th>
+                                <th>Alamat</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Batang Penarik (Resizer) -->
+                <div class="table-resizer" id="tableResizer" title="Tarik ke atas atau bawah untuk mengatur tinggi tabel"></div>
             </div>
         </div>
     </div>
@@ -359,7 +400,40 @@
     
     let globalPegawaiData = [];
 
-    document.addEventListener("DOMContentLoaded", muatDataGuru);
+    document.addEventListener("DOMContentLoaded", () => {
+        muatDataGuru();
+        initTableResizer();
+    });
+
+    // Fitur Resizer Tabel (Drag untuk memperbesar/memperkecil tinggi tabel)
+    function initTableResizer() {
+        const resizer = document.getElementById('tableResizer');
+        const wrapper = document.getElementById('tableWrapper');
+        let startY = 0;
+        let startHeight = 0;
+
+        const onMouseMove = (e) => {
+            const dy = e.clientY - startY;
+            const newHeight = startHeight + dy;
+            if (newHeight >= 180 && newHeight <= 900) {
+                wrapper.style.height = `${newHeight}px`;
+            }
+        };
+
+        const onMouseUp = () => {
+            resizer.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        resizer.addEventListener('mousedown', (e) => {
+            startY = e.clientY;
+            startHeight = wrapper.offsetHeight;
+            resizer.classList.add('resizing');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    }
 
     // Fungsi parsing tanggal dari Google Sheet agar format input date HTML dapat membaca dengan tepat
     function formatTanggalInput(dateStr) {
